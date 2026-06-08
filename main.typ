@@ -7,11 +7,26 @@
   ),
 )
 
-= MLDM
+= ML Recap & Evaluation
 #container[
-  == Gradient descent
   - *Chain rule*: $f(g(x))' = f'(g(x)) dot g'(x)$
-    
+  
+  == Loss Functions & Model Selection
+  - *Regression:* Evaluated using Mean Squared Error (MSE).
+  - *Classification:* Last layer uses Softmax activation. Evaluated using log loss (CCE): $L = - 1 / N sum_(i=1)^N [ y_i log(p_i) + (1 - y_i) log(1 - p_i) ]$.
+  - *Error Decomposition:* $"MSE" = "systematic error" ("bias"^2) + "dependence on sample" ("variance") + "irreducible error" ("noise")$.
+  - *Bias-Variance Tradeoff:* Complex models generally decrease bias but increase variance. 
+  - *Overfitting* occurs when training error is low but test error increases.
+  - *Nested Cross Validation:* Used for limited data. The inner loop handles model selection (hyperparameter tuning), and the outer loop estimates generalization performance.
+
+  == Performance Measures
+  - *Confusion Matrix:* True Positive (TP), True Negative (TN), False Positive (FP), False Negative (FN).
+  - *Precision:* $"TP" / ("TP" + "FP")$ - How many detected samples are actually relevant.
+  - *Recall/Sensitivity:* $"TP" / ("TP" + "FN")$ - How many relevant samples are correctly detected.
+  - *F1 Score:* $2 dot ("Precision" dot "Recall") / ("Precision" + "Recall")$.
+  - *Multiclass Aggregation:*
+    - *Macro:* Averages the metric across all classes equally ($1/C sum "Metric"_c$). Treats all classes equally.
+    - *Micro:* Sums all TPs, FPs, and FNs globally before calculating the metric. Favors frequent/majority classes.
 ]
 
 = Intro 
@@ -28,21 +43,36 @@
     
   == Terms
   - *Explainability*: how well human can understand model's reasoning, decisions & predictions. 
-  - *Explanation*: Interface human<>model. Accurate proxy of model, but human-readable.
   - *Interpretability:* how well human can understand internal mechanics of model. 
+  - *Explanation*: Interface human<>model. Accurate proxy of model, but human-readable.
   - *Transparency:* The openness and visibility into how an AI system operates, including access to its design, data, algorithms, and decision-making processes.
 
-  #image("expl-vs-accu.png")
-  #image("table_xai_model.png")
+  #stack(dir: ltr,
+    image("expl-vs-accu.png", width: 40%),
+    image("table_xai_model.png", width: 60%),
+  )
 ]
 
 = Inherent explainability 
 #container[
-  == GAMs, GA²Ms, NGAMs
+   == GAMs, GA²Ms, NGAMs
+  - *Generalized Additive Models (GAMs):* Provide a balance between accuracy and explainability. Formulated as $g(y) = beta_0 + sum f_j(x_j)$. They model first-order terms.
+  - *GA²Ms:* Extend GAMs to model second-order feature interactions: $g(y) = beta_0 + sum f_j(x_j) + sum_{i != j} f_{i,j}(x_i, x_j)$. Fits a GAM first, then ranks all possible interaction pairs in the residual, selecting the top pairs. Note: Additive terms show modular contributions but capture associations/correlations, not causality.
+  - *Neural Generalized Additive Models (NGAMs):* Uses neural networks as shape functions instead of traditional splines. Each feature is processed separately by a neural network, and outputs of all networks are added to produce the final output.
 
   == Explainable Boosting Machine
+  - A tree-based gradient boosting GA²M.
+  - Learns the shape function of each feature in a *round-robin fashion* (one feature at a time) using gradient boosting with very small learning rates so feature order does not matter.
+  - Automatically detects and includes pairwise feature interactions.
+  - Two-stage training: Builds single-feature models first, then builds pairwise interactions on the residuals.
+  - Slow training, but fast inference.
 
   == Interpretable Decision Sets (IDS)
+  - Learns a collection of simple, non-overlapping *if-then rules*. 
+  - *Two-step approach:* 1) Apply frequent itemset mining (Apriori algorithm) to obtain candidate itemsets. 2) Apply a smooth local search approach to optimize the rules until convergence.
+  - *Optimization Objectives:*
+    - *Performance:* Optimize Precision (minimize incorrect covers) and Recall (encourage correct covers).
+    - *Interpretability:* Optimize for Parsimony (fewer rules/conditions), Distinctness (minimal intra-class and inter-class overlap to prevent contradicting explanations), and Class Coverage (ensure all classes are explained, not just the majority).
 ]
 
 = Black-box explainability 
