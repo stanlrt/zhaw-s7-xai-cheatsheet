@@ -228,9 +228,19 @@ $ x_("cf") = arg min_(x') max_lambda lambda (f_w(x') - y')^2 + d(x,x') $
   - *Problem:* infeasible CFs possible, e.g. race
   === Feasible and Least cost Counterfactuals
   - restrict to feasible changes $A$: income yes, race/age no 
-  - minimize *cost*, not only distance 
-  - percentile intuition: $90 -> 95$ harder than $50 -> 55$ 
+  - minimize *cost*, not only distance: $90% -> 95%$ harder than $50% -> 55%$ 
   - *Limitation:* mainly linear models; ignores feature interactions
+  === Causal CF with Structural Causal Model 
+  - uses *SCM* to respect causal dependencies between features 
+  - *Goal*: minimal intervention, not minimal raw distance
+  - e.g. loan: depends on salary+balance $->$ +salary $->$ +balance
+  === Counterfactuals on Data Manifold
+  - no SCM? train VAE; search CF in latent space; compress data 
+  - realistic/high data density CFs; classifier-agnostic; tabular data 
+  === 5. Global CF summaries: AReS
+  - model-agnostic global recourse rules for subgroups 
+  - optimises: correctness, coverage, interpretability, recourse cost 
+  - use: detect biased/different recourse across groups
 ]
 
 
