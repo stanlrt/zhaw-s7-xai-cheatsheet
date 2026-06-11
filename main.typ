@@ -3,8 +3,9 @@
 #show: cheatsheet.with(
   info: (
     title: "XAI",
-    authors: ("Stanislas Laurent",),
+    authors: ("Jonas Vonderhagen, not so much: Stanislas Laurent",),
   ),
+  
 )
 
 = ML Recap & Evaluation
@@ -247,20 +248,76 @@ $ x_("cf") = arg min_(x') max_lambda lambda (f_w(x') - y')^2 + d(x,x') $
 = Mechanistic interpretability
 #container[
   - *Goal:* Reverse-engineering $->$ study model internals/model cognition
-  - *Hypothesis:* model's underlying principles/structures generalise & learn human understandable algorithms
-  == Features vs. Circuits
-  - *Features/Concepts: * What the model knows, internal concept learned, e.g. holiday neurons fire for names, decorations etc.
-  - *Cicuits/Functions: *Set of internal components/connections that together produce a behaviour: How does the model compute decisions?
+  - *Idea:* model = learned concepts + circuits/algorithms connecting them  == Features vs. Circuits
+  - *Features/Concepts: * What does the model know? e.g. holiday neuron
+  - *Circuits/Functions: *e.g. windows + wheels + car body -> car detector
   == Transformers
-  complex architecture for interrelated sequential data $->$ hard to understand
-  === Self-Attention
-  - *Query*: What a token asks for; *Key*: what a token can match against; *Value: *Information contributed by token
-  $"Attention"(X) = V * "softmax[K[X]^T]"$
-  
+  - *Use:* sequence data; attention gives context-aware token representations 
+  - *Q/K/V intuition:* Query = what token asks for; Key = what token can match; Value = information contributed $ "Attention"(X) = V[X] dot "softmax"(K[X]^T Q[X]) $ 
+  - attention weights sum to 1; output = weighted sum of values 
+  - *Problem:* self-attention has no order info -> need positional encoding 
+  - *Multi-head:* parallel attention heads -> more capacity 
+  - *LLMs:* tokens -> embeddings + pos. enc. -> transformer blocks -> softmax next-token probs
+  === Circuit discovery workflow 
+  1. choose task/behaviour + matching dataset, e.g. greater-than task: "1732 to 17??" -> output must be > 32 
+  2. represent model internals as DAG:
+  - coarse: attention heads / MLPs 
+  - granular: neurons 
+  3. prune graph via *activation patching* start at output: corrupt $a$ $->$ output change $<tau$ $->$ unimportant $->$ remove edge
+  === ACDC: Automatically Discovering Circuits
+  - Input: computational graph, dataset, corrupted data, threshold $tau$ - Iterate output -> input; try removing incoming edges
+  - Use KL-Divergence recursively: remove if smaller than $tau$
+  - *manual choices: *granularity, metric, threshold, corrupted samples
+  === Polysemanticity / Superposition 
+  - *Problem:* neurons are often not monosemantic 
+  - *Polysemantic neuron:* one neuron responds to multiple concepts 
+  - Especially in LLMs; CNN neurons more often cleaner 
+  - *Superposition:* model represents more features than dimensions by mixing concepts in same neurons 
+  - *Intuition*: small network simulates larger sparse network
+  === Sparse Autoencoders
+  - *Goal:* find interpretable latent features not captured by single neurons 
+  - Learn sparse, overcomplete feature space $S$ for activations $H$ 
+  - *sparse*: activation = few active features; *overcomplete:* more features than original dimensions 
+  - Encoder outputs = feature activations 
+  - Decoder columns = feature directions 
+  - Examples: Arabic-script feature, DNA-sequence feature 
+  - *Use:* discover concepts, measure contribution, monitor safety concepts, intervene on model behaviour
 ]
 
 = Post-Hoc concept based methods
 #container[
+  - *Why concepts?* pixel/feature attributions often not semantically meaningful, not actionable, unstable/adversarially manipulable 
+  - *Concepts:* high-level human-understandable units, e.g. stripes, wheels
+  - Concepts can be *pre-defined* or *discovered from data* 
+  - NNs naturally learn concepts: lower layers -> textures/surfaces; higher layers -> semantic concepts
+  === T-CAV: Testing with Concept Activation Vectors
+  - *Goal:* how much a user-defined concept influences pred. of class $k$ 
+  - *Type:* post-hoc, concept-based, global for class, needs NN internals 
+  - Concepts are defined domain experts/users, e.g. "stripes" for zebra
+  1. choose intermediate layer $f_l$ 2. collect concept examples + random examples 3. train linear classifier in activation space 4. CAV = normal vector to classifier boundary 5. compute directional derivative: $ S_(C,k,l)(x) = nabla h_(l,k)(f_l(x)) dot v_C^l $ 
+  - $S > 0$: increasing concept $C$ increases class-$k$ prediction
+  - *TCAV score:* fraction of class-$k$ inputs pos. influenced by concept $C$
+  - *Limitations:* need pre-defined concepts + labelled examples
+  === ACE: Automatic Concept Extraction
+  - *Goal:* automatically discover meaningful visual concepts
+  - *Idea:* common image patches/superpixels across a class = concepts 
+  - *Meaningfulness:* segment imgs at multiple resolutions -> superpixels 
+  - *Coherence:* encode patches w. pretr. CNN, cluster similar, - outliers 
+  - *Importance:* apply TCAV to discovered concepts
+  - *Smallest suff. concepts:* few top concepts to recover much accuracy 
+  - *Smallest destroying c.:* remove top concepts cause many misclass.
+  - *Limitations:* only images/pixel patches; miss rare concepts (outliers)
+  === CCE: Completeness-Aware Concept Extraction
+  - *Goal:* discover complete concept set sufficient to explain prediction 
+  - Decompose model: $ x -> Phi(x) = h -> f(h) -> y $ 
+  - Learn concept vectors $C = [c_1, ..., c_m]$ 
+  - *Completeness intuition:* if hidden state $h$ is projected to concept space and reconstructed, model accuracy should stay high 
+  - *Score close to 1*: concepts preserve almost all info needed for prediction; *Score close to 0*: concepts no better than random
+  - *1.* project hidden layer $h$ into concept space *2.* compute norm. concept scores *3.* train $g$ to reconstruct $h$ from concept scores *4.* pass reconstructed $hat(h)$ $->$ rest of model *5.* optimise concepts for high completeness
+  - *Regularisers:* *Coherence:* similar samples close in concept space; *Diversity:* concepts should differ, avoid duplicates 
+  - *ConceptSHAP:* fair contribution score of each concept to completeness 
+  - *Advantage:* can work beyond images, e.g. text 
+  - *Limit:* more complex; discov. concepts may still need human interpret
   
 ]
 
