@@ -193,6 +193,46 @@
   - *Bins:* samples in each bin: set feat. lower boundary, set feat upper b. $->$ compute pred. difference $->$ avg. local diffs $->$ accumulate
 ]
 
+= Sample Importance & Counterfactuals
+#container[
+  - *Main questions: * important samples for pred., input kinds misclasified, what input max. activates a neuron of interest?
+  == Influence functions
+  - *Goal:* estimate importance of training sample $z$ for pred. test sample
+  - *Approach:* _1. order Taylor approximation_: simul. leave-one-out retrain
+  $ I_("up,params")(z) = -H^(-1) nabla_theta L(z, hat(theta)) $
+  - *Intuition:* gradient = how strongly sample pushes params; $H^(-1)$ = corrects for curvature / how easily model moves
+  - *Removal of sample:* each sample has weight $1/n$, so removing $z$ approx. means $epsilon = -1/n$
+  $ hat(theta)_(-z) - hat(theta) approx -1/n I_("up,params")(z) $
+  - *Influence on test loss:*
+  $ I_("up,loss")(z, z_("test")) = - nabla_theta L(z_("test"), hat(theta))^T H^(-1) nabla_theta L(z, hat(theta)) $
+  - *Interpretation:* large abs. influence = training point strongly affects test pred.; positive = harmful, negative = helpful
+  - *Example:* if removing one point changes pred. $35% -> 75%$, that point is highly influential (possibly mislabeled)
+  - *Pros:* fast approx. of leave-one-out
+  - *Cons:* Hessian expensive; not model-agnostic; less reliable/accurate for deep non-convex NNs
+
+  == Activation Maximisation
+  - *Goal:* find natural/synthetic inputs that strongly activate neuron / channel / class
+  - *Two variants:* pick strongest real examples from dataset; or synthesize input
+  - *Optimisation:* *gradient ascent* on input: 
+    $ x_(t+1) = x_t + eta (partial a_j(x_t)) / (partial x) $
+  - *Use:* shows what pattern neuron/class/channel/layer is looking for
+  - *Note:* dataset examples = what activates in practice; synthetic examples = what maximally activates
+  == Counterfactuals
+  - *Question:* what minimal changes to $x$ make model output desired $y'$? 
+  - *Counterfactual:* changed input $x'$ with different prediction 
+  - *Recourse:* actionable CF, e.g. rej. loan $->$ approved: "increase income"
+  === Minimum distance counterfactuals
+$ x_("cf") = arg min_(x') max_lambda lambda (f_w(x') - y')^2 + d(x,x') $
+  - prediction-loss term flips output; distance term keeps $x'$ close to $x$
+  - optimise w. ADAM *(needs gradients)* + random restarts; increase $lambda$
+  - *Problem:* infeasible CFs possible, e.g. race
+  === Feasible and Least cost Counterfactuals
+  - restrict to feasible changes $A$: income yes, race/age no 
+  - minimize *cost*, not only distance 
+  - percentile intuition: $90 -> 95$ harder than $50 -> 55$ 
+  - *Limitation:* mainly linear models; ignores feature interactions
+]
+
 
 = Mechanistic interpretability
 #container[
