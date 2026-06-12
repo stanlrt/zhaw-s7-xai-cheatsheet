@@ -43,7 +43,7 @@
   - *Legislation:* Anti-discrimination laws, GDPR (General Data Protection Regulations), EU AI Act, California Consumer Privacy Act
     
   == Terms
-  - *Explainability*: how well human can understand model's reasoning, decisions & predictions. 
+  - *Explainability*: how well human understand model reasoning, decisions & predictions. 
   - *Interpretability:* how well human can understand internal mechanics of model. 
   - *Explanation*: Interface human<>model. Accurate proxy of model, but human-readable.
   - *Transparency:* The openness and visibility into how an AI system operates, including access to its design, data, algorithms, and decision-making processes.
@@ -58,7 +58,7 @@
 #container[
    == GAMs, GA²Ms, NGAMs
   - *GAMs*: $g(y) = beta_0 + sum f_j(x_j)$
-  - *GA²Ms:* Extend GAMs to model second-order feature interactions: $g(y) = beta_0 + sum f_j(x_j) + sum_{i != j} f_{i,j}(x_i, x_j)$. Fits a GAM first, then ranks all possible interaction pairs in the residual, selecting the top pairs. Note: Additive terms show modular contributions but capture associations/correlations, not causality.
+  - *GA²Ms:* Extend GAMs to model second-order feature interactions: $g(y) = beta_0 + sum f_j(x_j) + sum_{i != j} f_{i,j}(x_i, x_j)$. 1) fits GAM, 2) ranks all possible interaction pairs in residual, select the top pairs. _Additive terms show modular contributions but capture associations/correlations, not causality._
   - *NGAMs:* Uses neural networks as shape functions instead of traditional splines. Each feature is processed separately by a neural network, and outputs of all networks are added to produce the final output.
   - *XAI*: each spline function can be considered individually. But: Captures associations/correlations not causality! 
 
@@ -89,7 +89,7 @@
   - *Local:* explain the prediction for a single input sample
   - *Global:* explain the model's average behaviour for all inputs
 
-  === Explnation types
+  === Explanation types
   - *Analytic statement:* natural language descriptions of elements and context important for the model output/decision
   - *Visualisations:* highlight parts of data important for the decision/prediction
   - *Examples:* give illustrative/typical examples that support the prediction
@@ -362,8 +362,67 @@ $ x_("cf") = arg min_(x') max_lambda lambda (f_w(x') - y')^2 + d(x,x') $
 
 = Neurosymbolic approaches
 #container[
-
-  
+  - *Idea:* combine neural nets + symbolic reasoning 
+  - *NN:* low-level perception / concepts from data 
+  - *Symbolic logic:* explicit rules + reasoning over concepts 
+  - *Probabilities:* handle uncertainty
+  == Symbolic reasoning 
+  - uses human-readable symbols + explicit rules 
+  - Example: human(Socrates) + all humans mortal -> Socrates mortal 
+  - *Pros:* accurate, reliable (deterministic), transparent, verifiable, expressive 
+  - *Cons:* expensive. inference, weak with noise/ambiguity, bad for high-dim data
+  == Motivation: MNIST addition 
+  - Task: two digit images -> predict sum 
+  - Pure NN must learn: image -> digit AND digit + digit -> sum 
+  - But addition rule is already known 
+  - *Neuro-symbolic idea:* learn digit concepts, use logic/rules for addition - Addition rule intuition: if left digit $i$ and right digit $j$, then sum is $i+j$
+  == Loss-based approaches
+  - *Idea:* put logic into the loss 
+  - Penalize predictions that violate knowledge $K$
+  - Need differentiable version $->$ probabilistic logic
+  Example: $K = (a => b)$ 
+  - false only if $a=1$ and $b=0$ 
+  - let $q = P(a=1)$, $r = P(b=1)$ 
+  - $ P(K) = 1 - q(1-r) $ 
+  - high $P(K)$ = prediction obeys rule
+  === Semantic Loss 
+  - rewards probability mass assigned to valid outputs satisfying $K$ 
+  $ L_S(K,p) = -log sum_(y models K) (product_i p_i^(y_i) (1 - p_i)^(1 - y_i)) $
+  $ L = L_("train") + lambda L_S $ 
+  - *Use:* SL as regularizer encouraging prediction satisfying constraint $K$
+  - Example constraint: exactly one class in multiclass classification
+  === Logic Tensor Networks 
+  - NN maps input -> probabilities of logic facts 
+  - trained with semantic loss to satisfy knowledge $K$ 
+  - inference = simple forward pass 
+  - *Limits:* truth table grows as $2^n$; constraints are soft (integrated into NN); no guarantee for samples away from training data
+  == Layer-based approaches 
+  - *Idea:* put logic into the architecture as differentiable layer 
+  - NN predicts concepts/facts; logic layer infers labels using rules $K$ 
+  - *Recipe:* 
+  1. define symbolic representation 
+  2. interpret NN outputs as predicates 
+  3. assign probabilities 
+  4. build logic circuit/proof 
+  5. insert NN predicates into circuit 
+  6. replace logic by differentiable ops: AND -> $*$, OR -> $+$, NOT -> $1-x$ 
+  7. differentiate end-to-end
+  == Semantic Probabilistic Layers (SPL) 
+  - differentiable probabilistic logic layer attached to NN 
+  - NN outputs embeddings/concepts $z$ 
+  - define distribution $q(y|z)$ over possible outputs 
+  - constraint circuit $c_K(y)$ masks invalid outputs 
+  - normalize -> probabilities sum to 1 
+  - *Key:* outputs always satisfy constraints $K$ 
+  - *Applications:* structured prediction, hierarchical classification, pathfinding 
+  - *Pros:* efficient inference, end-to-end training, guaranteed valid outputs 
+  - *Limit:* constraint circuit can become huge if $K$ is complex 
+  == Explainability + shortcut issue 
+  - *Explanation:* concepts are learned by NN; labels inferred using explicit knowledge $K$
+  - *Advantage:* rules are available and traceable; can inspect which concepts led to prediction 
+  - *Limitation:* learned concepts may not match human semantics 
+  - *Reasoning shortcut:* model may predict one concept using another correlated concept e.g. predict "pedestrian" as "red light" and still get stop/go correct 
+  - *Fix:* concept-level supervision / extra constraints
 ]
 
 = Evaluating explanations
@@ -380,7 +439,12 @@ $ x_("cf") = arg min_(x') max_lambda lambda (f_w(x') - y')^2 + d(x,x') $
   - *Functionally-grounded* eval. (math, formal, no humans) *e.g.: * sparcity, monotonicity, model size, number of rules/prototypes; *Fastest*, but weakest evidence of human usefulness
   == Post-Hoc evaliation dimensions
   === Faithfulness: explanation = model behaviour?
-  - *expert ground truth: *_Feature agreement: _fraction of common features k-most important; _Sign agreement: __feature agreement_ *+ sign*; _Rank agreement: _ top k pred. and ground truth: same order: _Rank correlation:_ Spearman's rank correlation among ordered pred & gt; _Pairwise rank agreement:_ relative ordering of every pair is the same
+  - *expert ground truth: *
+  - _Feature agreement: _fraction of common features k-most important
+  - _Sign agreement: __feature agreement_ *+ sign*
+  - _Rank agreement: _ top k pred. and ground truth: same order
+  - _Rank correlation:_ Spearman's rank correlation among ordered pred & gt
+  - _Pairwise rank agreement:_ relative ordering of every pair is the same
   - *simpler model (LIME, model dist.):* fraction of samples that match
   - *Predictive faithfulness Methods:*
   - _Deletion: _ seq. removal most important features → *good:* first steep, then flat _Insertions: _ start empty, add most important → *good:* first steep, then flat; _Perturbation: _ perturb first most important (should change), perturb unimportant (should not change)
