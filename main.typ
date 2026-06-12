@@ -1,11 +1,23 @@
-#import "@preview/simple-cheatsheet:0.1.0": cheatsheet, container
+#import "cheatsheet.typ": cheatsheet, container
 
 #show: cheatsheet.with(
   info: (
     title: "XAI",
     authors: ("Jonas Vonderhagen, not so much: Stanislas Laurent",),
   ),
-  
+  layout: (
+    font-size: 6pt,
+    // x = printable side border; top clears header rule; bottom default
+    margin: (x: 10pt, top: 30pt, bottom: 20pt),
+    columns: (count: 4, gutter: 4pt),
+    leading: 0.5em,            // line spacing
+    par-spacing: 0.45em,       // paragraph gap
+    list-spacing: 0.4em,       // gap between bullets
+    list-indent: 0pt,
+    heading-above: 4pt,
+    heading-below: 4pt,
+    container-inset: (x: 0.6em, y: 0.6em),
+  ),
 )
 
 = ML Recap & Evaluation
