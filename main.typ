@@ -3,7 +3,7 @@
 #show: cheatsheet.with(
   info: (
     title: "XAI",
-    authors: ("Jonas Vonderhagen, not so much: Stanislas Laurent",),
+    authors: ("Jonas Vonderhagen, getting there: Stanislas Laurent",),
   ),
   layout: (
     font-size: 6pt,
@@ -70,23 +70,23 @@
 #container[
    == GAMs, GA²Ms, NGAMs
   - *GAMs*: $g(y) = beta_0 + sum f_j(x_j)$
-  - *GA²Ms:* Extend GAMs to model second-order feature interactions: $g(y) = beta_0 + sum f_j(x_j) + sum_{i != j} f_{i,j}(x_i, x_j)$. 1) fits GAM, 2) ranks all possible interaction pairs in residual, select the top pairs. _Additive terms show modular contributions but capture associations/correlations, not causality._
-  - *NGAMs:* Uses neural networks as shape functions instead of traditional splines. Each feature is processed separately by a neural network, and outputs of all networks are added to produce the final output.
-  - *XAI*: each spline function can be considered individually. But: Captures associations/correlations not causality! 
+  - *GA²Ms:* Extend GAMs to model second-order feature interactions: $g(y) = beta_0 + sum f_j(x_j) + sum_{i != j} f_{i,j}(x_i, x_j)$. 1) fits GAM, 2) ranks all possible interaction pairs in residual, select the top pairs. _Additive terms show modular contributions but *capture associations/correlations, not causality.*_
+  - *NGAMs:* NNs as shape functions, not traditional splines. Each feature processed sep. by a NN, sum outputs of all networks to prod. final out
+  - *XAI*: each spline considered individually_. Captures associations/correlations not causality! _
 
   == Explainable Boosting Machine
   - A tree-based gradient boosting GA²M.
-  - Learns the shape function of each feature in a *round-robin fashion* (one feature at a time) using gradient boosting with very small learning rates so feature order does not matter.
+  - Learns shape function of each feat in *round-robin* (1 feat at once) using grad boosting with tiny learn. rates so feat order unimportant.
   - Automatically detects and includes pairwise feature interactions.
-  - Two-stage training: Builds single-feature models first, then builds pairwise interactions on the residuals.
-  - Slow training, but fast inference.
+  - 2-stage train: Builds single-feat models 1st, then builds pairwise interactions on the residuals.
+  - Slow training, fast inference
 
   == Interpretable Decision Sets (IDS)
-  - Learns a collection of simple, non-overlapping *if-then rules*. 
-  - *Two-step approach:* 1) Apply frequent itemset mining (Apriori algorithm) to obtain candidate itemsets. 2) Apply a smooth local search approach to optimize the rules until convergence.
-  - *Optimization Objectives:*
-    - *Performance:* Optimize Precision (minimize incorrect covers) and Recall (encourage correct covers).
-    - *Interpretability:* Optimize for Parsimony (fewer rules/conditions), Distinctness (minimal intra-class and inter-class overlap to prevent contradicting explanations), and Class Coverage (ensure all classes are explained, not just the majority).
+  - Learns collection of simple, non-overlapping *if-then rules*. 
+  - *2-step approach:* 1) Apply frequent itemset mining (Apriori algo) to obtain candidate itemsets. 2) Apply smooth local search to opti the rules until convergence.
+  - *Optim Objectives: NP hard $->$ approx. with local search*
+    - *Performance:* Optimize #underline[Precision] (minimize incorrect covers) and #underline[Recall] (encourage correct covers).
+    - *Interpretability:* Optimize for #underline[Parsimony] (fewer rules/conditions), #underline[Distinctness] (minimal intra-class and inter-class overlap to prevent contradicting explanations), and #underline[Class Coverage] (ensure all classes are explained, not just the majority).
 ]
 
 = Black-box explainability 
@@ -119,32 +119,47 @@
     - For tabular Data: samples from a normal distribution based on the mean and standard deviation of each feature in your training set.
   2. Input those synthetics samples into the black-box model.
   3. Weight the outputs based on the sample's distance to $x$.
-  4. Train inherently x. model on the weighted synthetic outputs. (e.g linear reg.)
+  4. Train inherently expl. model on the weighted synthetic outputs. (e.g linear reg.)
   === Anchors
   *Local* rule-based *model-agnostic*: find minimal set of features to lock-in prediction with high probability → changes other feature values → same prediction (IF-ELSE-Rules)
   - *How: * map local neighbourhood by generating multiple perturbed instances around target instance
   - *Optimization: * muti-arm bandit optimization → high precision and beam search to max. coverage of the neighbourhood
   - *Images: *Use superpixels obtained through image segementation
   === SHAP: Feature importance
-  *Collab. game theory: * how much each feature contributed with _fair distribution_ (features add up, rewards +/-, interchangable players equal rewards, no effect → 0 contrib.) + _interaction_
+  *Local, Post-Hoc*. Leave each feat out to understand its impact. 
+
+  #let cphi = rgb("#C0392B") // SHAP value
+#let cS   = rgb("#2471A3") // subset S
+#let cF   = rgb("#1E8449") // feature set F
+#let cf   = rgb("#B9770E") // model f
+
+$text(fill: #cphi, phi_i)
+=
+sum_(text(fill: #cS, S) subset.eq text(fill: #cF, F) without {i})
+(|text(fill: #cS, S)|! (|text(fill: #cF, F)| - |text(fill: #cS, S)| - 1)!) / (|text(fill: #cF, F)|!)
+[text(fill: #cf, f)(text(fill: #cS, S) union {i}) - text(fill: #cf, f)(text(fill: #cS, S))]
+$
+
+#text(fill: cphi)[$phi_i$ — SHAP value: contribution of feature $i$] \
+#text(fill: cS)[$S$ — subset of features that excludes $i$] \
+#text(fill: cF)[$F$ — set of all features ($|dot.c|$ = cardinality)] \
+#text(fill: cf)[$f$ — model prediction for a given feature subset] \
+#text(fill: black)[$f(S union {i}) - f(S)$ — marginal contribution of $i$]
+
+Baseline: avg pred value over *entire* dataset
   
-  *Local, Post-Hoc* _KernelSHAP_: model agnostic approximation; _TreeSHAP, LinearSHAP_: model-specific, exact
-  - Start from the baseline prediction: $E[f(x)]$
-  - Add features in the given order.
-  - Each SHAP value is the jump in expected prediction.
+  // For order: $"Age" -> "Income"$
   
-  For order: $"Age" -> "Income"$
+  // $phi_"Age" =
+  //   E[f(x) | "Age" = 30] - E[f(x)]$
   
-  $phi_"Age" =
-    E[f(x) | "Age" = 30] - E[f(x)]$
-  
-  $phi_"Income" =
-    E[f(x) | "Age" = 30, "Income" = "60K"]
-    - E[f(x) | "Age" = 30]$
-  - *LinearSHAP:*exact for linear models.
+  // $phi_"Income" =
+  //   E[f(x) | "Age" = 30, "Income" = "60K"]
+  //   - E[f(x) | "Age" = 30]$
+  - *LinearSHAP:* exact for linear models.
     $phi_i = beta_i (x_i - E[X_i])$
   - *TreeSHAP:* exact for tree models.
-    For each subset $S$, follow known feature splits.
+    For each subset $S$, follow known feature †splits.
     If a split feature is missing, follow both branches weighted by training-data proportions.
     Then plug the resulting $v(S)$ values into the SHAP formula.
   - *KernelSHAP:* model-agnostic approximation.
@@ -160,37 +175,45 @@
   - *Goal:* Which input pixels/features are most relevant for _target class_
   - *Type:* local, post-hoc, model-specific
   - Backpropagation to compute gradients of class score w.r.t input
-  - for class c: $ M_c(x) = (partial S_c(x)) / (partial x) $
+  - $ M_"class"(x) = (partial S_"class"(x)) / (partial x) $
   - *Interpretation:* large gradient = small pixel change strongly changes class score.
   - *Output:* heatmap with same size as input image.
-  - *Problems: *noisy (local deriv. vary strong), ReLU saturation (- ignored)
+  - *Problems: *noisy (local deriv. vary strong), ReLU sat. (- inputs ignored)
   === Variants
   - *SmoothGrad:* - noise: adding gaussian noise (10-20%) to input → avg
   - *Gradient x Input:* Multiply input gradients element-wise with original → _idea:_ important features have high input value + high gradient → more stable
-  == CAM: Class Activation Mapping
-  - Works for CNNs with *Global Average Pooling, GAP*: sum feature maps for each channel $->$ param free/reduce dimensionality, sum out spacial info, Interpretability: weight of linear layer $->$ imporance of spacial features for class $->$ final class score = linear combin. feature maps
+  == CAM: Class Activation Mapping (no gradients used)
+  - Works for CNNs with *Global Average Pooling, GAP*: sum feature maps for each channel $->$ param free/reduce dimensionality, sum out spacial info, Interpretability: *weight of lin. layer $->$ importance of spacial feats* for class $->$ final class score = linear combi. feat. maps
   === Grad-CAM: Generalization for many non GAP-CNNs
   - Uses *Gradients* of class scores w.r.t. last convolutional feature maps
   - Gradient is only backpropagated to the *last conv. layer* not to input
   - Produces coarse but more human-interpretable heatmaps
-  1. compute gradient of class score w.r.t feature maps: $ alpha_k^c = 1/(H W) sum_i sum_j (partial y^c) / (partial A_"ij"^k) $
-  2. Grad-CAM heatmap for class c (only + influence (ReLU): $ L_("Grad-CAM")^c = "ReLU"(sum_(k=1)^K alpha_k^c A^k) $ 
+  1. compute gradient of class score w.r.t feature maps: $
+underbrace(alpha_k^c, "importance of map" k "for class" c)
+=
+overbrace(1/(H W), "global avg pool" \ "over" H times W)
+thin
+underbrace(sum_i sum_j, "sum over all" \ "spatial cells" (i,j))
+thin
+overbrace((partial y^c) / (partial A_(i j)^k), "gradient of class score" \ "w.r.t. activations (backprop)")
+$
+  2. Grad-CAM heatmap for class c (only + influence (ReLU): $L_("Grad-CAM")^c = "ReLU"(sum_(k=1)^K alpha_k^c A^k) $ 
   === LRP: Layer-Wise Relevance Propagation
   - *Type:* *local, post-hoc, model-specific* for NNs: Starts from prediction score and propagates “relevance” backwards layer by layer.
   - *Main principle*: Relevance conservation ($a_j$: activ. neuron $j$; $w_"ji"$: weight neuron $j$ to neuron $i$; $l$: layer; $R_i$: Relevance neuron $i$)
-  $ R_j^((l)) = sum_i (a_j^((l)) w_"ji"^((l))) / (sum_j a_j^((l)) w_"ji"^((l)) + epsilon) R_i^((l+1)) $
-  - $+$ satisfies sensitivity; $-$ violates impl. invariance: NN layer structure
+    $R_j^((l)) = sum_i (a_j^((l)) w_"ji"^((l))) / (sum_j a_j^((l)) w_"ji"^((l)) + epsilon) R_i^((l+1)) $
+  - $+$ satisfies *sensitivity*; $-$ violates *impl. invariance*: NN layer structure
   == Integrated Gradients: Attribution method using baseline input
-  - *Baseline:* represents absence of signal, e.g. black image
+  - *Baseline:* represents absence of signal, e.g. black image, then explain images that progressively become final input
   - Integrates gradients along straight path: baseline $x'$ to target input $x$
-  $ "IG"_i^(approx)(x) = (x_i - x'_i) times 1/m sum_(k=1)^m (partial F(x' + k/m (x - x'))) / (partial x_i) $
-  - Satisfies all 4 properties: _Completeness_, _Sensitivity_, _Implementation Invariance_, _Linearity_
+    $"IG"_i^(approx)(x) = (x_i - x'_i) times 1/m sum_(k=1)^m (partial F(x' + k/m (x - x'))) / (partial x_i) $
+  - Satisfies all* 4 properties*: _Completeness_ sum attrib. = output - baseline, _Sensitivity_ feat that changes output has $eq.not 0$ attrib else 0, _Implementation Invariance_ equi net -> same attrib, _Linearity_
   - *Problems:* Baseline choice difficult (no signal), no interaction
   == Global Model Agnostic XAI approaches
   === Model distillation: Interpretable model mimics black-box
   - E.g.: decision tree, GAM, decision set
   - *Model-agnostic*: only needs inputs + black-box predictions
-  - 1. train black-box $x->y$; 2.train interpretable($y^*$): $x->hat(y)$; 3. check alignment $hat(y)<>y^*$; 4. use well-aligned surrogate to interpret $hat(y)$
+  - *1.*train black-box $x->y$; *2.* train interpretable($y^*$): $x->hat(y)$; *3.* check alignment $hat(y)<>y^*$; *4.* use well-aligned surrogate to interpret $hat(y)$
   - Good surrogate should have high surrogate alignment: $ R^2 approx 1$
   === SP-LIME: sub-modular pick LIME
   - many *local* LIME explanations $->$ *global* explanation
@@ -200,7 +223,7 @@
   - measure *marginal impact of a target feature* on prediction, *others fixed*
   - 1. select target feature; 2. vary across plausible range; 3. compute pred. for each variation; 4. avg. pred. over all dataset samples
   - More variation in PDP $->$ more important
-  - *Disadvantages:* not high-dim data, no feature interactions, unrealistic feature combinations
+  - *Disadvantages:* not for high-dim data, no feature interactions, unrealistic feature combinations
   === ALE: Accumulated Local Effects
   - Change feature values only locally: avoid unrealistic combinations
   - *Bins:* samples in each bin: set feat. lower boundary, set feat upper b. $->$ compute pred. difference $->$ avg. local diffs $->$ accumulate
@@ -212,12 +235,10 @@
   == Influence functions
   - *Goal:* estimate importance of training sample $z$ for pred. test sample
   - *Approach:* _1. order Taylor approximation_: simul. leave-one-out retrain
-  $ I_("up,params")(z) = -H^(-1) nabla_theta L(z, hat(theta)) $
+   $I_("up,params")(z) = -H^(-1) nabla_theta L(z, hat(theta)) $
   - *Intuition:* gradient = how strongly sample pushes params; $H^(-1)$ = corrects for curvature / how easily model moves
-  - *Removal of sample:* each sample has weight $1/n$, so removing $z$ approx. means $epsilon = -1/n$
-  $ hat(theta)_(-z) - hat(theta) approx -1/n I_("up,params")(z) $
-  - *Influence on test loss:*
-  $ I_("up,loss")(z, z_("test")) = - nabla_theta L(z_("test"), hat(theta))^T H^(-1) nabla_theta L(z, hat(theta)) $
+  - *Removal of sample:* each sample has weight $1/n$, so removing $z$ approx. means for $epsilon = -1/n$ : $hat(theta)_(-z) - hat(theta) approx -1/n I_("up,params")(z)$
+  - *Influence on test loss:*  $I_("up,loss")(z, z_("test")) = - nabla_theta L(z_("test"), hat(theta))^T H^(-1) nabla_theta L(z, hat(theta)) $
   - *Interpretation:* large abs. influence = training point strongly affects test pred.; positive = harmful, negative = helpful
   - *Example:* if removing one point changes pred. $35% -> 75%$, that point is highly influential (possibly mislabeled)
   - *Pros:* fast approx. of leave-one-out
@@ -226,8 +247,7 @@
   == Activation Maximisation
   - *Goal:* find natural/synthetic inputs that strongly activate neuron / channel / class
   - *Two variants:* pick strongest real examples from dataset; or synthesize input
-  - *Optimisation:* *gradient ascent* on input: 
-    $ x_(t+1) = x_t + eta (partial a_j(x_t)) / (partial x) $
+  - *Optimisation:* *gradient ascent* on input: $x_(t+1) = x_t + eta (partial a_j(x_t)) / (partial x) $
   - *Use:* shows what pattern neuron/class/channel/layer is looking for
   - *Note:* dataset examples = what activates in practice; synthetic examples = what maximally activates
   == Counterfactuals
