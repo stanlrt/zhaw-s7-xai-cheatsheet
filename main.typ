@@ -80,7 +80,7 @@
 = Black-box explainability 
 #container[
   == Taxonomy
-  #image("blackboxtaxo.png")
+  #image("blackboxtaxo.png", width: 80%)
   === Stage
   - *In-model:* explainability computed directly during model prediction
   - *Post-hoc:* explainability computed using the model's output
@@ -323,8 +323,41 @@ $ x_("cf") = arg min_(x') max_lambda lambda (f_w(x') - y')^2 + d(x,x') $
 
 = In-model explainability approaches
 #container[
+  - *Post-hoc limits:* no guarantee explanation is faithful; extra error source; no causality; confirmation bias
+  - *In-model:* change model architecture so explanation part of pred.
+  - *Approaches:* prototypical, concept-based, neuro-symbolic
+  == Prototypical explanations
+  - *Idea:* example-based reasoning: "this looks like that" 
+  - Model uses representative examples/prototypes internally
+  - New sample classified by similarity to closest/most active prototypes
+  - Explanation: prediction because input is similar to prototype(s)
+  === ProtoPNet
+  - *Type:* in-model, prototypical, image-specific
+  - *Idea:* classify by comparing image patches to learned class-spec. pro
+  - pretr. CNN extracts feat. map; protos layer comps patches to protos
+  - similarity heatmap shows where input looks like latent repr. of protos
+  - max pooling -> one similarity score per prototype
+  - FC layer combines prototype scores -> class logits
+  - *Explanation:* "this region looks like that prototype -> class C"
+  - SGD: protos = equally spread across classes, *clustered*, *separated*
+  - project protos to nearest real training patch $->$ visualizable examples
+  - *Limitations:* mainly images; protos = local patches
+  === Concept Bottleneck Models (CBM)
+  - *Type:* in-model, concept-based, intrinsic
+  - *Idea:* prediction must go through human-understandable concepts 
+  $ x -> g(x) = hat(c) -> f(hat(c)) = hat(y) $
+  - concept encoder $g$: input -> predicted concepts (human labeled)
+  - label predictor $f$: predicted concepts -> class/output
+  - *Assumption:* each sample has label $y$ + concept annotations $c$
+  - *Explanation:* "prediction because concepts $c_1, c_2, ...$ are present"
+  - *Training options:* *Independent:* train $g: x -> c$ and $f: c -> y$ separat *Sequential:* train $g$, freeze it, train $f$ on predicted concepts *Joint:* train end-to-end with:$l= l_t + lambda l_c$ $lambda$: concept correctness vs. task perform.
 
-  
+  - *Concept interventions:* inspect/correct concept values at test time; replacing wrong predicted concepts can improve output
+  - *Limitations:* needs concept labels; concepts may be incomplete/ill-defined; concept predict. can still be black-box; possible perf.trade-off
+  === Label-free CBMs
+  - Problem: concept labels expensive $->$ *1.LLMs:* concepts for each class $->$ 2. *Filter:* length, duplicates, class similarity, data occurence $->$ *3. CLIP/VLM: *compute image-text concept similarities $->$ *4.* Learn mapping from embeddings to concept scores $->$ *5.*Train sparse classifier from concept scores to labels
+  - *Pros:* no manual concept annotations; concepts are language-based
+  - *Limits:* concept quality $->$ LLM/VLM; c. can still be incomplete/wrong
 ]
 
 = Neurosymbolic approaches
@@ -339,41 +372,20 @@ $ x_("cf") = arg min_(x') max_lambda lambda (f_w(x') - y')^2 + d(x,x') $
 
   *why?: *most pick explanations match their intuition, or are most familiar
   == Different aspects
-  - *Correctness of explanations*: How accurate/precise are they?
-  - *Relevance: * Meaningfulness of explanations
-  - *Interpretability:* how interpretable are they?
-  - *Actionability: * can they help improve the model?
-  - *Succinctness: * how concise/compact are they?
-  - *Completeness*
-  - * Robustness/stability*
-  *Common metrics:* pred. performance improvement, decision time, user satisfaction, expert agreement, complexity, stability scores
+  - *Correctness of explanations*: How accurate/precise are they?  *Relevance: * Meaningfulness of explanations *Interpretability:* how interpretable are they? *Actionability: * can they help improve the model? *Succinctness: * how concise/compact are they? *Completeness*, * Robustness/stability*
+  - *Common metrics:* pred. performance improvement, decision time, user satisfaction, expert agreement, complexity, stability scores
   == Evaluation types
-  === Application-grounded (most specific, realistic, costly)
-  - *Domain experts* do XAI help doctors make better diagnosis?
-  - *Metrics*: diagnostic accuracy, decision time, trust...
-  === Human-grounded eval. with non-experts
-  - *Input + explanation*: simulate the model's output, what pred. expected
-  - *Counterfactual simulation: *what must change to change prediction?
-  === Functionally-grounded evaluation (math, formal, no humans)
-  - *e.g.: * sparcity, monotonicity, model size, number of rules/prototypes
-  - Fastest, but weakest evidence of human usefulness
+  - *Application-grounded* (most specific, realistic, costly) *Domain experts* do XAI help doctors make better diagnosis? *Metrics*: diagnostic accuracy, decision time, trust...
+  - *Human-grounded* eval. with non-experts *Input + explanation*: simulate the model's output, what pred. expected *Counterfactual simulation: *what must change to change prediction?
+  - *Functionally-grounded* eval. (math, formal, no humans) *e.g.: * sparcity, monotonicity, model size, number of rules/prototypes; *Fastest*, but weakest evidence of human usefulness
   == Post-Hoc evaliation dimensions
   === Faithfulness: explanation = model behaviour?
-  - *expert ground truth: *
-  - _Feature agreement: _fraction of common features k-most important
-  - _Sign agreement: __feature agreement_ *+ sign*
-  - _Rank agreement: _ top k predicted and ground truth: same order
-  - _Rank correlation:_ Spearman's rank correlation among ordered pred &gt
-  - _Pairwise rank agreement:_ relative ordering of every pair is the same
+  - *expert ground truth: *_Feature agreement: _fraction of common features k-most important; _Sign agreement: __feature agreement_ *+ sign*; _Rank agreement: _ top k pred. and ground truth: same order: _Rank correlation:_ Spearman's rank correlation among ordered pred & gt; _Pairwise rank agreement:_ relative ordering of every pair is the same
   - *simpler model (LIME, model dist.):* fraction of samples that match
   - *Predictive faithfulness Methods:*
-  - _Deletion: _ seq. removal most important features → *good:* first steep, then flat
-  - _Insertions: _ start empty, add most important → *good:* first steep, then flat
-  - _Pertubation: _ perturb first most important (should change), perturb unimportant (should not change)
+  - _Deletion: _ seq. removal most important features → *good:* first steep, then flat _Insertions: _ start empty, add most important → *good:* first steep, then flat; _Perturbation: _ perturb first most important (should change), perturb unimportant (should not change)
   === Stability
-  - *RIS: Relative Input Stability: *Small input change → explanation should change little.
-  - *RRS: Relative Representation Stability: *Small latent/internal representation change → explanation should change little.
-  - *ROS: Relative Output Stability: *Similar output probabilities → similar explanations.
+  - *RIS: Relative Input Stability: *Small input change → explanation should change little. *RRS: Relative Representation Stability: *Small latent/internal representation change → explanation should change little. *ROS: Relative Output Stability: *Similar output probabilities → similar explanations.
   === Fairness
   - compute _Faithfulness, Stability_ per group → compare
   - *Important: * prediction fairness $!=$ explanation fairness, explanations can be better for one group
