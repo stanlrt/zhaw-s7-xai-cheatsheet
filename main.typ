@@ -418,8 +418,13 @@ $ x_("cf") = arg min_(x') max_lambda lambda (f_w(x') - y')^2 + d(x,x') $
   - $ P(K) = 1 - q(1-r) $ 
   - high $P(K)$ = prediction obeys rule
   === Semantic Loss 
-  - rewards probability mass assigned to valid outputs satisfying $K$ 
-  $ L_S(K,p) = -log sum_(y models K) (product_i p_i^(y_i) (1 - p_i)^(1 - y_i)) $
+  - rewards probability mass assigned to valid outputs satisfying $K$
+  #let csat = rgb("#2471A3") // valid outputs
+  #let cass = rgb("#1E8449") // assignment prob
+  $ L_S(K,p) = -log sum_(text(fill: #csat, y tack.r.double K))
+    text(fill: #cass, product_i p_i^(y_i) (1 - p_i)^(1 - y_i)) $
+  #text(fill: csat)[$y tack.r.double K$ — sum over all outputs satisfying $K$] \
+  #text(fill: cass)[$product_i ...$ — likelihood of one assignment ($p_i$=prob output $i$ on)]
   $ L = L_("train") + lambda L_S $ 
   - *Use:* SL as regularizer encouraging prediction satisfying constraint $K$
   - Example constraint: exactly one class in multiclass classification
